@@ -1,4 +1,4 @@
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
@@ -19,170 +19,195 @@ class Item(BaseModel):
     name: str
     description: str
     price: float
+    id: Optional[int] = None
 
 
 class Consumer(BaseModel):
     name: str
     email: str
-    bucket_list: List[Item] = []
+    bucket_list: List[int] = []
+    id: Optional[int] = None
 
 
-items: Dict[int, Item] = {}
-consumers: Dict[int, Consumer] = {}
-
-
-items[1] = Item(
-    name="Fruit de Lune",
-    description="Un fruit juteux qui brille dans l'obscurité, avec un goût sucré et acidulé.",
-    price=15.99,
-)
-items[2] = Item(
-    name="Noix de Rêve",
-    description="Des noix croquantes qui stimulent l'imagination, avec une saveur de caramel et de vanille.",
-    price=9.50,
-)
-items[3] = Item(
-    name="Lait de Nuage",
-    description="Une boisson légère et mousseuse, infusée de saveurs florales, parfaite pour se détendre.",
-    price=7.99,
-)
-items[4] = Item(
-    name="Pâtisserie Étoilée",
-    description="Une délicieuse pâtisserie garnie de crème aux étoiles, qui fond dans la bouche.",
-    price=12.50,
-)
-items[5] = Item(
-    name="Gelée de Tempête",
-    description="Une gelée vibrante qui change de couleur, avec un goût épicé et fruité.",
-    price=8.99,
-)
-items[6] = Item(
-    name="Chocolat de l'Inspiration",
-    description="Un chocolat riche et crémeux qui stimule la créativité, avec des éclats de menthe.",
-    price=10.99,
-)
-items[7] = Item(
-    name="Thé des Sages",
-    description="Un mélange de plantes rares qui favorise la clarté d'esprit et la sérénité.",
-    price=6.50,
-)
-items[8] = Item(
-    name="Gâteau des Rêves",
-    description="Un gâteau léger et aérien, garni de crème fouettée et de fruits enchantés.",
-    price=14.99,
-)
-
-consumers[1] = Consumer(name="Alice Dupont", email="alice.dupont@example.com")
-consumers[2] = Consumer(name="Jean Martin", email="jean.martin@example.com")
-consumers[3] = Consumer(name="Sophie Leroy", email="sophie.leroy@example.com")
-consumers[4] = Consumer(name="Pierre Durand", email="pierre.durand@example.com")
-consumers[5] = Consumer(name="Claire Petit", email="claire.petit@example.com")
+items: List[Item] = [
+    Item(
+        name="Fruit de Lune",
+        description="Un fruit juteux qui brille dans l'obscurité, avec un goût sucré et acidulé.",
+        price=15.99,
+        id=1,
+    ),
+    Item(
+        name="Noix de Rêve",
+        description="Des noix croquantes qui stimulent l'imagination, avec une saveur de caramel et de vanille.",
+        price=9.50,
+        id=2,
+    ),
+    Item(
+        name="Lait de Nuage",
+        description="Une boisson légère et mousseuse, infusée de saveurs florales, parfaite pour se détendre.",
+        price=7.99,
+        id=3,
+    ),
+    Item(
+        name="Pâtisserie Étoilée",
+        description="Une délicieuse pâtisserie garnie de crème aux étoiles, qui fond dans la bouche.",
+        price=12.50,
+        id=4,
+    ),
+    Item(
+        name="Gelée de Tempête",
+        description="Une gelée vibrante qui change de couleur, avec un goût épicé et fruité.",
+        price=8.99,
+        id=5,
+    ),
+    Item(
+        name="Chocolat de l'Inspiration",
+        description="Un chocolat riche et crémeux qui stimule la créativité, avec des éclats de menthe.",
+        price=10.99,
+        id=6,
+    ),
+    Item(
+        name="Thé des Sages",
+        description="Un mélange de plantes rares qui favorise la clarté d'esprit et la sérénité.",
+        price=6.50,
+        id=7,
+    ),
+    Item(
+        name="Gâteau des Rêves",
+        description="Un gâteau léger et aérien, garni de crème fouettée et de fruits enchantés.",
+        price=14.99,
+        id=8,
+    ),
+]
+consumers: List[Consumer] = [
+    Consumer(name="Alice Dupont", email="alice.dupont@example.com", id=1),
+    Consumer(name="Jean Martin", email="jean.martin@example.com", id=2),
+    Consumer(name="Sophie Leroy", email="sophie.leroy@example.com", id=3),
+    Consumer(name="Pierre Durand", email="pierre.durand@example.com", id=4),
+    Consumer(name="Claire Petit", email="claire.petit@example.com", id=5),
+]
 
 
 @app.get("/items/", tags=["items"])
 async def read_items() -> list[Item]:
-    return list(items.values())
+    return items
 
 
 @app.get("/items/{item_id}", tags=["items"])
 async def read_item(item_id: int):
-    if item_id not in items:
+    if item_id not in [i.id for i in items]:
         raise HTTPException(status_code=404, detail="Item not found")
-    return items[item_id]
+    return [i for i in items if i.id == item_id][0]
 
 
 @app.post("/items/", tags=["items"])
 async def create_item(name: str, price: int, description: str = ""):
-    item = Item(name=name, description=description, price=price)
-    item_id = len(items) + 1
-    items[item_id] = item
+    item_id = max([i.id for i in items if i.id is not None]) + 1
+    items.append(Item(name=name, description=description, price=price, id=item_id))
     return {"item_id": item_id}
 
 
 @app.put("/items/{item_id}", tags=["items"])
-async def update_item(item_id: int, name: str, price: int, description: str = ""):
-    if item_id not in items:
+async def update_item(
+    item_id: int,
+    name: Optional[str] = None,
+    price: Optional[int] = None,
+    description: Optional[str] = None,
+) -> Item:
+    if item_id not in [i.id for i in items]:
         raise HTTPException(status_code=404, detail="Item not found")
-    items[item_id] = Item(name=name, description=description, price=price)
-    return {"item_id": item_id}
+
+    item = [i for i in items if i.id == item_id][0]
+    if name is not None:
+        item.name = name
+    if price is not None:
+        item.price = price
+    if description is not None:
+        item.description = description
+    return item
 
 
 @app.delete("/items/{item_id}", tags=["items"])
 async def delete_item(item_id: int):
-    if item_id not in items:
+    if item_id not in [i.id for i in items]:
         raise HTTPException(status_code=404, detail="Item not found")
-    del items[item_id]
-    return {"detail": "Item deleted"}
+    item = [i for i in items if i.id == item_id][0]
+    items.remove(item)
+    return {"detail": f"Item {item_id} deleted"}
+
+
+@app.get("/consumers/", tags=["consumers"])
+async def read_consumers():
+    return consumers
 
 
 @app.post("/consumers/", tags=["consumers"])
 async def create_consumer(name: str, email: str):
-    consumer = Consumer(name=name, email=email)
-    consumer_id = len(consumers) + 1
-    consumers[consumer_id] = consumer
+    consumer_id = max([c.id for c in consumers if c.id is not None]) + 1
+    consumer = Consumer(name=name, email=email, id=consumer_id)
+    consumers.append(consumer)
     return {"consumer_id": consumer_id}
 
 
 @app.get("/consumers/{consumer_id}", tags=["consumers"])
 async def read_consumer(consumer_id: int):
-    if consumer_id not in consumers:
+    if consumer_id not in [i.id for i in consumers]:
         raise HTTPException(status_code=404, detail="Consumer not found")
-    return consumers[consumer_id]
-
-
-@app.get("/consumers/", tags=["consumers"])
-async def read_consumers():
-    return consumers.values()
+    return [c for c in consumers if c.id == consumer_id][0]
 
 
 @app.put("/consumers/{consumer_id}", tags=["consumers"])
 async def update_consumer(consumer_id: int, consumer: Consumer):
-    if consumer_id not in consumers:
+    try:
+        consumer_old = [c for c in consumers if c.id == consumer_id][0]
+    except KeyError:
         raise HTTPException(status_code=404, detail="Consumer not found")
-    consumers[consumer_id] = consumer
-    return {"consumer_id": consumer_id}
+
+    consumer.id = consumer_id
+    consumers.append(consumer)
+    consumers.remove(consumer_old)
+
+    return consumer
 
 
 @app.delete("/consumers/{consumer_id}", tags=["consumers"])
 async def delete_consumer(consumer_id: int):
-    if consumer_id not in consumers:
+    try:
+        consumer_old = [c for c in consumers if c.id == consumer_id][0]
+    except KeyError:
         raise HTTPException(status_code=404, detail="Consumer not found")
-    del consumers[consumer_id]
-    return {"detail": "Consumer deleted"}
+    consumers.remove(consumer_old)
+    return {"detail": f"Consumer {consumer_id} deleted"}
 
 
 @app.post("/consumers/{consumer_id}/bucket_list/", tags=["consumers"])
 async def add_to_bucket_list(consumer_id: int, item_id: int):
-    if consumer_id not in consumers:
+    try:
+        consumer = [c for c in consumers if c.id == consumer_id][0]
+    except KeyError:
         raise HTTPException(status_code=404, detail="Consumer not found")
-    if item_id not in items:
+    try:
+        item = [i for i in items if i.id == item_id][0]
+    except KeyError:
         raise HTTPException(status_code=404, detail="Item not found")
-    consumer = consumers[consumer_id]
-    item = items[item_id]
-    consumer.bucket_list.append(item)
+
+    consumer.bucket_list.append(item.id)
     return {
         "detail": f"Added item {item.name} to consumer {consumer.name}'s bucket list"
     }
 
 
-@app.get("/consumers/{consumer_id}/bucket_list/", tags=["consumers"])
-async def get_bucket_list(consumer_id: int):
-    if consumer_id not in consumers:
-        raise HTTPException(status_code=404, detail="Consumer not found")
-    consumer = consumers[consumer_id]
-    return consumer.bucket_list
-
-
 @app.delete("/consumers/{consumer_id}/bucket_list/{item_id}", tags=["consumers"])
 async def delete_from_bucket_list(consumer_id: int, item_id: int):
-    if consumer_id not in consumers:
+    try:
+        consumer = [c for c in consumers if c.id == consumer_id][0]
+    except KeyError:
         raise HTTPException(status_code=404, detail="Consumer not found")
-    consumer = consumers[consumer_id]
-    if item_id not in [item.id for item in consumer.bucket_list]:
-        raise HTTPException(
-            status_code=404, detail="Item not found in consumer's bucket list"
-        )
-    consumer.bucket_list = [item for item in consumer.bucket_list if item.id != item_id]
+    try:
+        item = [i for i in items if i.id == item_id][0]
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Item not found")
+    consumer.bucket_list.remove(item_id)
     return {
         "detail": f"Removed item {item_id} from consumer {consumer.name}'s bucket list"
     }
